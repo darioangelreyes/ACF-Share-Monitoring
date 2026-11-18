@@ -1,0 +1,9 @@
+# Project schema (the agreements volume is in agreements.volume.yml).
+# If an admin pre-creates the schema instead, delete this file and point var.schema at it
+# (and replace ${resources.schemas.acf_share_monitoring.name} with ${var.schema} in the job and app files).
+resources:
+  schemas:
+    acf_share_monitoring:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: ACF Delta Share Monitoring - agreements, share inventory, system-table views and compliance findings.

@@ -1,0 +1,98 @@
+# ACF Delta Share Monitoring: Declarative Automation Bundle.
+# Checks every ACF Delta Share against its signed data-sharing agreement (MOU / ISA / amendment).
+#
+# To install in a new environment, edit ONLY the `targets:` section below (see README.md):
+#   1. Set workspace.host for each target you deploy to.
+#   2. Replace every "<FILL_IN: ...>" variable value.
+#   3. Choose use_synthetic_data: "true" (demo on generated data) or "false" (your real agreements and shares).
+# Then: databricks bundle deploy -t <target>  ->  databricks bundle run acf_share_monitoring_job -t <target>
+
+bundle:
+  name: acf_share_monitoring
+
+include:
+  - resources/*.yml
+
+variables:
+  # ---------- required (set per target) ----------
+  catalog:
+    description: Unity Catalog catalog for the project schema (you need USE CATALOG and CREATE SCHEMA on it).
+  schema:
+    description: Project schema, created by the bundle. In development mode it is prefixed with dev_<your_user>_.
+    default: acf_share_monitoring
+  warehouse_id:
+    description: SQL warehouse ID used by the Genie space and the app (SQL Warehouses > your warehouse > Connection details).
+  vs_endpoint:
+    description: Name of an existing Vector Search endpoint for the agreement index.
+
+  # ---------- synthetic data switch ----------
+  use_synthetic_data:
+    description: '"true" = demo on generated data (01/02 generate PDFs and tables). "false" = your real agreements, source tables and Delta Shares.'
+    default: "true"
+
+  # ---------- optional ----------
+  embedding_model:
+    description: Embedding model serving endpoint for the vector index and search_agreements().
+    default: databricks-gte-large-en
+  llm_endpoint:
+    description: Chat model serving endpoint the app uses to draft agreements and notices.
+    default: databricks-claude-sonnet-5-5
+  genie_title:
+    description: Title of the Genie space created by 08. A visible space with the same title is updated in place, so keep it unique.
+    default: ACF Delta Share Compliance
+  genie_space_id:
+    description: Genie space ID printed by the job's 08_create_genie_space task. Set it and redeploy to enable the app's Ask Genie page.
+    default: ""
+  volume:
+    description: UC volume (inside the project schema) that holds the agreement PDFs.
+    default: sample_mous
+  agreements_path:
+    description: Real mode only. Folder of your agreement PDFs. Empty = /Volumes/<catalog>/<schema>/<volume>/agreements.
+    default: ""
+  source_catalog:
+    description: Real mode only. Catalog of the ACF tables your shares expose. Empty = the project catalog.
+    default: ""
+  source_schema:
+    description: Real mode only. Schema of the ACF tables your shares expose. Empty = the project schema.
+    default: ""
+  share_name_prefix:
+    description: Real mode only. Only Delta Shares whose name starts with this prefix are monitored.
+    default: acf_
+  job_schedule_status:
+    description: UNPAUSED to run the pipeline daily at 06:00 America/New_York, PAUSED to run it on demand only.
+    default: PAUSED
+
+targets:
+  # Development: deploys to your user folder, prefixes the job and schema with your user name.
+  # The values below are for the original demo workspace; replace them for your environment.
+  dev:
+    mode: development
+    default: true
+    # workspace:
+    #   host: https://<your-workspace>.cloud.databricks.com
+    variables:
+      catalog: fedhealth_demo_ws_catalog
+      warehouse_id: 5de83857e252cc26
+      vs_endpoint: hhs_oa_vs_endpoint
+      use_synthetic_data: "true"
+      genie_title: ACF Delta Share Compliance [dev ${workspace.current_user.short_name}]
+
+  # Production: shared deployment, real data by default. Fill in every value before deploying.
+  prod:
+    mode: production
+    workspace:
+      # host: https://<FILL_IN: your-workspace>.cloud.databricks.com
+      # One shared copy, in a folder only the deployer (a user or service principal) can write to.
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    # run_as:
+    #   service_principal_name: <FILL_IN: application ID of the service principal that runs the job>
+    variables:
+      catalog: "<FILL_IN: catalog>"
+      warehouse_id: "<FILL_IN: SQL warehouse ID>"
+      vs_endpoint: "<FILL_IN: Vector Search endpoint name>"
+      use_synthetic_data: "false"
+      job_schedule_status: UNPAUSED
+    resources:
+      apps:
+        acf_share_monitoring_app:
+          name: acf-share-monitoring

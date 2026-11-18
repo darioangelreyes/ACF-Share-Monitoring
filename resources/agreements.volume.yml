@@ -1,0 +1,9 @@
+# Volume for the agreement PDFs: synthetic_data/ in demo mode, agreements/ for your real agreements.
+resources:
+  volumes:
+    agreements:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.acf_share_monitoring.name}
+      name: ${var.volume}
+      volume_type: MANAGED
+      comment: Data-sharing agreement PDFs (synthetic_data/ in demo mode, agreements/ for real agreements).

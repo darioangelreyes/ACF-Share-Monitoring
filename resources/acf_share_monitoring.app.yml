@@ -1,0 +1,51 @@
+# Streamlit app for reviewing findings, drafting remediation and drafting new agreements.
+# Its settings come from the bundle (config.env below), so app/ has no app.yaml to edit.
+# App names are workspace-global: dev deploys get your user name appended; prod overrides the name in databricks.yml.
+resources:
+  apps:
+    acf_share_monitoring_app:
+      name: acfsm-${workspace.current_user.domain_friendly_name}
+      description: ACF Delta Share Compliance - shares vs signed agreements, remediation and agreement drafting.
+      source_code_path: ../app
+      # On-behalf-of-user authorization: SQL, Genie, model serving and Vector Search run as the signed-in user.
+      user_api_scopes:
+        - sql
+        - genie
+        - model-serving
+        - vector-search
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: llm
+          serving_endpoint:
+            name: ${var.llm_endpoint}
+            permission: CAN_QUERY
+        - name: agreements-volume          # PDF downloads use the app's service principal
+          uc_securable:
+            securable_full_name: ${var.catalog}.${resources.schemas.acf_share_monitoring.name}.${resources.volumes.agreements.name}
+            securable_type: VOLUME
+            permission: READ_VOLUME
+      config:
+        command:
+          - streamlit
+          - run
+          - app.py
+          - --server.port
+          - $DATABRICKS_APP_PORT
+          - --server.address
+          - 0.0.0.0
+        env:
+          - name: ACF_WAREHOUSE_ID
+            value_from: sql-warehouse
+          - name: ACF_LLM_ENDPOINT
+            value_from: llm
+          - name: ACF_CATALOG
+            value: ${var.catalog}
+          - name: ACF_SCHEMA
+            value: ${resources.schemas.acf_share_monitoring.name}
+          - name: ACF_VS_INDEX
+            value: ${var.catalog}.${resources.schemas.acf_share_monitoring.name}.agreement_chunks_index
+          - name: ACF_GENIE_SPACE_ID
+            value: ${var.genie_space_id}

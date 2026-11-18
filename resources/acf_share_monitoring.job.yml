@@ -1,0 +1,80 @@
+# The end-to-end pipeline: notebooks 01-08 in order on serverless compute.
+# Job parameters become notebook widgets that src/00_config reads.
+# With use_synthetic_data = "false", 01 and 02 exit immediately with a "Skipped" message.
+resources:
+  jobs:
+    acf_share_monitoring_job:
+      name: acf-share-monitoring
+      description: Parse agreements, build the share inventory and system-table views, write compliance findings, refresh the Genie space.
+      max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: America/New_York
+        pause_status: ${var.job_schedule_status}
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${resources.schemas.acf_share_monitoring.name}
+        - name: warehouse_id
+          default: ${var.warehouse_id}
+        - name: vs_endpoint
+          default: ${var.vs_endpoint}
+        - name: use_synthetic_data
+          default: ${var.use_synthetic_data}
+        - name: volume
+          default: ${resources.volumes.agreements.name}
+        - name: agreements_path
+          default: ${var.agreements_path}
+        - name: source_catalog
+          default: ${var.source_catalog}
+        - name: source_schema
+          default: ${var.source_schema}
+        - name: share_name_prefix
+          default: ${var.share_name_prefix}
+        - name: embedding_model
+          default: ${var.embedding_model}
+        - name: genie_title
+          default: ${var.genie_title}
+      tasks:
+        - task_key: generate_agreements
+          description: Demo mode only - render the 11 synthetic agreement PDFs.
+          notebook_task:
+            notebook_path: ../src/01_generate_agreements.py
+        - task_key: source_tables
+          description: Demo mode only - create the 9 synthetic ACF source tables and identifier tags.
+          depends_on:
+            - task_key: generate_agreements
+          notebook_task:
+            notebook_path: ../src/02_source_tables.py
+        - task_key: share_inventory
+          depends_on:
+            - task_key: source_tables
+          notebook_task:
+            notebook_path: ../src/03_share_inventory.py
+        - task_key: parse_classify_extract
+          depends_on:
+            - task_key: share_inventory
+          notebook_task:
+            notebook_path: ../src/04_parse_classify_extract.py
+        - task_key: vector_index
+          depends_on:
+            - task_key: parse_classify_extract
+          notebook_task:
+            notebook_path: ../src/05_vector_index.py
+        - task_key: system_table_views
+          depends_on:
+            - task_key: vector_index
+          notebook_task:
+            notebook_path: ../src/06_system_table_views.py
+        - task_key: compliance_findings
+          depends_on:
+            - task_key: system_table_views
+          notebook_task:
+            notebook_path: ../src/07_compliance_findings.py
+        - task_key: create_genie_space
+          description: Creates or updates the Genie space; the run output is the space ID (set it as var.genie_space_id for the app).
+          depends_on:
+            - task_key: compliance_findings
+          notebook_task:
+            notebook_path: ../src/08_create_genie_space.py

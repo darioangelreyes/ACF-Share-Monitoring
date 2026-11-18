@@ -1,0 +1,15 @@
+# Federal, light-mode theme — deep navy + Public Sans (the U.S. government
+# typeface), tuned to feel like a professional federal workforce application and
+# to match the embedded Genie / AI-BI dashboard iframes (always light mode).
+[theme]
+base = "light"
+primaryColor = "#1a4480"              # federal navy
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#eef2f7"  # cool light gray for cards/inputs
+textColor = "#1b2b3a"                 # deep slate ink
+linkColor = "#005ea2"                 # USWDS link blue
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = true
